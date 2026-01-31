@@ -9,15 +9,18 @@
     "postinstall": "prisma generate --schema=./packages/db/prisma/schema.prisma"
   },
   "devDependencies": {
-    "turbo": "latest",
-    "prisma": "^6.19.2" 
+    "prisma": "^6.19.2",
+    "turbo": "latest"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "overrides": {
-  "react": "^19.0.0",
-  "react-dom": "^19.0.0"
-}
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "next": "^16.1.6"
+  }
 }
