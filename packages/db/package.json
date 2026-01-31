@@ -4,9 +4,7 @@
   "main": "./index.js",
   "types": "./index.d.ts",
   "dependencies": {
-    "@prisma/client": "latest"
-  },
-  "devDependencies": {
-    "prisma": "latest"
+    "@prisma/client": "^6.19.2",
+    "prisma": "^6.19.2"
   }
 }
