@@ -10,11 +10,12 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "15.0.3",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "@primestakecorp/finance": "*",
     "@primestakecorp/ui": "*",
-    "@primestakecorp/finance": "*"
+    "next": "15.0.3",
+    "next-auth": "^4.24.13",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
