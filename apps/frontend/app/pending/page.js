@@ -1,11 +1,20 @@
+"use client"; // Mandatory for interactivity (onClick)
+
 import React from 'react';
 import { LogoTower } from "@primestakecorp/ui";
+import { signOut } from "next-auth/react"; // Import sign out logic
 
 /**
  * PENDING VETTING SCREEN (MANDATORY HARD STOP)
- * This is the only screen unvetted users see after OTP verification.
+ * Updated to Client Component to support sign-out interactivity.
  */
 export default function PendingPage() {
+  
+  const handleSignOut = () => {
+    // Redirects user to the home page after clearing session
+    signOut({ callbackUrl: '/' });
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-6 selection:bg-brand-gold/30">
       
@@ -55,8 +64,9 @@ export default function PendingPage() {
             your status has been updated.
           </p>
           
+          {/* Sign Out Button - Now functional */}
           <button 
-            onClick={() => {/* Implement Logout Logic */}}
+            onClick={handleSignOut}
             className="mt-8 text-white/40 hover:text-white text-xs underline underline-offset-4 transition-colors"
           >
             Sign out of request
