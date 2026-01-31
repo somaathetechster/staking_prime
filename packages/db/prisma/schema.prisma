@@ -1,0 +1,55 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String    // Added for AuthFlow.jsx
+  status    String    @default("pending_review") // pending_review, approved, rejected
+  role      String    @default("USER")           // USER or ADMIN
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  wallets   Wallet[]
+  balances  Balance[]
+}
+
+model AdminRate {
+  symbol    String   @id // e.g., "BTC", "ETH"
+  rate      Float?   // The Manual Admin Override
+  useManual Boolean  @default(false) // Toggle: TRUE = Use 'rate', FALSE = Use API Fallback
+  updatedAt DateTime @updatedAt
+}
+
+// Added to cache the "Fallback" rates from Open Exchange/API
+model MarketRate {
+  symbol    String   @id
+  price     Float
+  updatedAt DateTime @updatedAt
+}
+
+model Wallet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  currency       String   // BTC, USDT
+  address        String   @unique
+  tatumAccountId String?  // ID from Tatum for webhooks
+  createdAt      DateTime @default(now())
+}
+
+model Balance {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  currency String
+  amount   Float  @default(0)
+
+  @@unique([userId, currency]) // Prevents duplicate currency rows for one user
+}

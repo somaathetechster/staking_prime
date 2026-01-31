@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primary Brand Colors */
+  --color-brand-gold: #d4af37;        /* Classic Institutional Gold */
+  --color-brand-gold-muted: #aa8c2c;  /* Hover states */
+  --color-brand-black: #0a0a0a;       /* Deep "Private Office" Black */
+  --color-brand-gray: #1a1a1a;        /* Card / Section Backgrounds */
+  
+  /* UI Status Colors */
+  --color-status-pending: #f59e0b;    /* Amber/Yellow for Vetting */
+  --color-status-approved: #10b981;   /* Emerald for Live accounts */
+  
+  /* Extended Slate Palette (replacing standard slate for more depth) */
+  --color-slate-950: #020617;
+  --color-slate-900: #0f172a;
+}
+
+@layer base {
+  body {
+    /* Utilizing the theme variables defined above */
+    background-color: var(--color-brand-black);
+    color: var(--color-slate-100);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11"; /* Modern font smoothing */
+  }
+}
