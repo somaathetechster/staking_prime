@@ -8,49 +8,94 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- IDENTITY & ACCESS CONTROL ---
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String    // Added for AuthFlow.jsx
-  status    String    @default("pending_review") // pending_review, approved, rejected
-  role      String    @default("USER")           // USER or ADMIN
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String    
+  // Vetting Status: PENDING_REVIEW, APPROVED, REJECTED, SUSPENDED
+  status        String    @default("PENDING_REVIEW") 
+  role          String    @default("USER")           
   
-  wallets   Wallet[]
-  balances  Balance[]
+  // ADD THESE TWO LINES
+  otp           String?   
+  otpExpires    DateTime?
+  
+  // Institutional Metadata
+  kycLevel      Int       @default(0)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  wallets       Wallet[]
+  balances      Balance[]
+  transactions  Ledger[]
+  stakes        Stake[]
 }
 
+// --- HIERARCHICAL RATE ENGINE ---
 model AdminRate {
-  symbol    String   @id // e.g., "BTC", "ETH"
-  rate      Float?   // The Manual Admin Override
-  useManual Boolean  @default(false) // Toggle: TRUE = Use 'rate', FALSE = Use API Fallback
-  updatedAt DateTime @updatedAt
+  symbol      String   @id // e.g., "BTC", "USDT"
+  manualRate  Float?   // Priority 1: Manual Admin Override
+  useManual   Boolean  @default(false) 
+  spread      Float    @default(0) // Institutional markup (basis points)
+  updatedAt   DateTime @updatedAt
 }
 
-// Added to cache the "Fallback" rates from Open Exchange/API
 model MarketRate {
-  symbol    String   @id
-  price     Float
-  updatedAt DateTime @updatedAt
+  symbol      String   @id
+  price       Float    // Priority 2: Fallback API Price
+  updatedAt   DateTime @updatedAt
 }
 
+// --- ACCOUNTING & ASSETS ---
 model Wallet {
   id             String   @id @default(uuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id])
   currency       String   // BTC, USDT
   address        String   @unique
-  tatumAccountId String?  // ID from Tatum for webhooks
+  network        String   @default("mainnet")
+  tatumAccountId String?  
   createdAt      DateTime @default(now())
 }
 
 model Balance {
-  id       String @id @default(uuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id])
-  currency String
-  amount   Float  @default(0)
+  id        String @id @default(uuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id])
+  currency  String
+  amount    Float  @default(0) // Current liquid balance
+  staked    Float  @default(0) // Capital currently in a yield line
 
-  @@unique([userId, currency]) // Prevents duplicate currency rows for one user
+  @@unique([userId, currency])
+}
+
+// --- THE IMMUTABLE LEDGER ---
+// Critical for "Superior" Auditability
+model Ledger {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  type          String   // DEPOSIT, WITHDRAWAL, STAKE_ALLOCATION, YIELD_PAYOUT
+  amount        Float
+  currency      String
+  status        String   @default("COMPLETED")
+  txHash        String?  @unique
+  metadata      Json?    // Store system logs or tatum data
+  createdAt     DateTime @default(now())
+}
+
+// --- YIELD ENGINE ---
+model Stake {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  programId     String   // prime30, prime150, etc.
+  amount        Float
+  entryRate     Float    // Rate at time of staking
+  accruedYield  Float    @default(0)
+  status        String   @default("ACTIVE") // ACTIVE, MATURED, LIQUIDATED
+  startDate     DateTime @default(now())
+  endDate       DateTime
 }

@@ -1,95 +1,146 @@
 import express from 'express';
-import { db } from '../lib/db'; // Assuming your Prisma/DB client path
-import { getLiveExchangeRate } from '../services/exchangeService';
+import { db } from '../lib/db';
+import { getEffectiveRate } from '../services/rates.service'; // Using your new rate service
+import crypto from 'crypto';
+import { z } from 'zod';
 
 const router = express.Router();
 
+// INSTITUTIONAL CONFIGURATION
+const TATUM_HMAC_SECRET = process.env.TATUM_HMAC_SECRET; // Must be set in .env
+const REQUIRED_CONFIRMATIONS = 2; // Safety threshold for block finality
+
 /**
- * Helper to fetch rates based on your specific priority logic:
- * Admin Overrides > Open Exchange Rates Fallback
+ * INSTITUTIONAL SETTLEMENT ENGINE
+ * Endpoint: POST /api/webhooks/tatum-deposit
+ * Protocol: HMAC-SHA512 Signature Verification -> Idempotency Check -> Atomic Ledger Settlement
  */
-async function getEffectiveRate(currency) {
-  // 1. Check if Admin has set a manual rate for this currency in the DB
-  const adminRate = await db.adminSettings.findUnique({
-    where: { key: `rate_${currency}` }
-  });
-
-  if (adminRate && adminRate.value) {
-    console.log(`[Rate] Using Admin Override for ${currency}: ${adminRate.value}`);
-    return parseFloat(adminRate.value);
-  }
-
-  // 2. Fallback to external API (Open Exchange Rates / Tatum)
-  const fallbackRate = await getLiveExchangeRate(currency);
-  console.log(`[Rate] Using API Fallback for ${currency}: ${fallbackRate}`);
-  return fallbackRate;
-}
-
 router.post('/tatum-deposit', async (req, res) => {
-  const { accountId, amount, currency, txId, subscriptionType } = req.body;
-
-  // Safety check for Tatum subscription types
-  if (subscriptionType !== 'ACCOUNT_INCOMING_BLOCKCHAIN_TRANSACTION') {
-    return res.status(200).send('Ignored: Not an incoming transaction.');
-  }
-
+  const timestamp = new Date().toISOString();
+  
   try {
-    // 1. Find the wallet associated with this Tatum Account ID
+    // 1. CRYPTOGRAPHIC SIGNATURE VERIFICATION (The "Seal")
+    // Tatum sends an HMAC signature in the headers. We verify it to ensure the request is actually from them.
+    const signature = req.headers['x-payload-hash'];
+    if (!signature) {
+      console.warn(`[SECURITY_BREACH] Unsigned webhook attempt from ${req.ip}`);
+      return res.status(403).json({ code: 'UNAUTHORIZED_SIGNATURE_MISSING' });
+    }
+
+    const computedHash = crypto
+      .createHmac('sha512', TATUM_HMAC_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest('base64');
+
+    if (signature !== computedHash) {
+      console.error(`[SECURITY_FAIL] Signature mismatch. Possible tampering.`);
+      return res.status(403).json({ code: 'INVALID_SIGNATURE' });
+    }
+
+    // 2. SURGICAL PAYLOAD VALIDATION
+    const schema = z.object({
+      accountId: z.string(),
+      amount: z.string(), // Blockchain amounts are strings to avoid float errors
+      currency: z.string(),
+      txId: z.string(),
+      subscriptionType: z.enum(['ACCOUNT_INCOMING_BLOCKCHAIN_TRANSACTION', 'OFFCHAIN_TRANSACTION']),
+      blockNumber: z.number().optional(),
+    });
+
+    const payload = schema.parse(req.body);
+
+    // 3. IDEMPOTENCY LOCK (The "Double-Spend" Guard)
+    // We check if this specific Transaction Hash (txId) has already been processed.
+    const existingLedger = await db.ledger.findUnique({
+      where: { txId: payload.txId }
+    });
+
+    if (existingLedger) {
+      console.log(`[IDEMPOTENCY] Transaction ${payload.txId} already settled. Skipping.`);
+      return res.status(200).send('ALREADY_PROCESSED');
+    }
+
+    // 4. INFRASTRUCTURE LOOKUP
     const wallet = await db.wallet.findFirst({
-      where: { tatumAccountId: accountId },
+      where: { tatumAccountId: payload.accountId },
       include: { user: true }
     });
 
     if (!wallet) {
-      console.error(`[Webhook] Unrecognized Account ID: ${accountId}`);
-      return res.status(200).send('OK'); // Still 200 to prevent Tatum retries
+      console.error(`[ORPHAN_TX] No wallet found for AccountID: ${payload.accountId}`);
+      // We return 200 to tell Tatum "We got it, stop sending" even though we can't process it.
+      return res.status(200).send('WALLET_NOT_FOUND');
     }
 
-    // 2. Determine the conversion rate using your priority rules
-    const conversionRate = await getEffectiveRate(currency);
-    const amountInUSD = parseFloat(amount) * conversionRate;
+    // 5. EFFECTIVE RATE RESOLUTION
+    // We fetch the rate specifically for this settlement moment.
+    const conversionRate = await getEffectiveRate(payload.currency);
+    const usdValue = parseFloat(payload.amount) * conversionRate;
 
-    // 3. Atomic transaction: Log deposit and update balances
-    await db.$transaction([
-      // Create a record of the transaction for the Audit Log
-      db.transaction.create({
+    // 6. ATOMIC SETTLEMENT TRANSACTION
+    // This either happens completely or not at all.
+    await db.$transaction(async (tx) => {
+      
+      // A. Create Immutable Ledger Entry
+      await tx.ledger.create({
         data: {
           userId: wallet.userId,
           type: 'DEPOSIT',
-          amount: parseFloat(amount),
-          currency,
-          usdValue: amountInUSD,
-          txHash: txId,
-          status: 'COMPLETED'
+          amount: parseFloat(payload.amount),
+          currency: payload.currency.toUpperCase(),
+          usdValue: usdValue,
+          txId: payload.txId,
+          status: 'COMPLETED',
+          rateUsed: conversionRate, // Audit trail: What was the rate at this second?
+          metadata: {
+            provider: 'TATUM',
+            blockHeight: payload.blockNumber,
+            timestamp
+          }
         }
-      }),
+      });
 
-      // Update the user's currency-specific balance
-      db.balance.upsert({
+      // B. Update User "Available Balance"
+      // We assume your User model has a generic 'balance' or specific currency balances
+      // Here we update the specific asset balance logic
+      await tx.balance.upsert({
         where: { 
-          userId_currency: { userId: wallet.userId, currency } 
+          userId_currency: { 
+            userId: wallet.userId, 
+            currency: payload.currency.toUpperCase() 
+          } 
         },
         update: { 
-          amount: { increment: parseFloat(amount) } 
+          amount: { increment: parseFloat(payload.amount) },
+          updatedAt: new Date()
         },
-        create: { 
-          userId: wallet.userId, 
-          currency, 
-          amount: parseFloat(amount) 
+        create: {
+          userId: wallet.userId,
+          currency: payload.currency.toUpperCase(),
+          amount: parseFloat(payload.amount)
         }
-      })
-    ]);
+      });
 
-    console.log(`[Success] Credited ${amount} ${currency} ($${amountInUSD.toFixed(2)}) to User ${wallet.userId}`);
+      // C. Optional: Notify Admin of High-Value Deposit
+      if (usdValue > 10000) {
+        // triggerAdminAlert(`High Value Deposit: $${usdValue} from User ${wallet.userId}`);
+      }
+    });
+
+    console.log(`[SETTLEMENT_COMPLETE] Tx: ${payload.txId} | User: ${wallet.userId} | +${payload.amount} ${payload.currency}`);
+    return res.status(200).json({ status: 'SETTLED' });
 
   } catch (error) {
-    console.error('[Webhook Error]', error);
-    // We send 200 because Tatum will keep retrying and potentially double-credit 
-    // unless we handle idempotency with txId.
-    return res.status(200).send('Error handled'); 
-  }
+    console.error('[SETTLEMENT_FAILURE]', error);
+    
+    // Zod Validation Errors -> 400 (Bad Request), Tatum shouldn't retry malformed data
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+    }
 
-  res.status(200).send('OK');
+    // Database/Network Errors -> 500 (Internal Server Error), Tatum SHOULD retry
+    return res.status(500).send('SETTLEMENT_ERROR'); 
+  }
 });
 
 export default router;

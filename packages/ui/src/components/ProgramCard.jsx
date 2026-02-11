@@ -1,82 +1,81 @@
+"use client";
+
+import { motion } from "framer-motion";
+
 export default function ProgramCard({ program, onStakeClick }) {
   const isDecade = program.id === "decade";
-  const isAnnual = program.id === "annual";
-
-  // Container styling with conditional gradients for depth
-  const baseClasses =
-    "relative rounded-[2.5rem] p-[1px] shadow-[0_20px_80px_rgba(0,0,0,0.95)] transition-all duration-300 hover:-translate-y-2 group";
-  
-  const innerClasses =
-    "h-full rounded-[2.4rem] p-8 bg-brand-gray/95 flex flex-col justify-between backdrop-blur-sm overflow-hidden";
 
   return (
-    <div
-      className={
-        baseClasses +
-        " " +
-        (isDecade
-          ? "bg-gradient-to-br from-brand-gold via-brand-gold/20 to-transparent shadow-brand-gold/5"
-          : isAnnual
-          ? "bg-gradient-to-br from-white/20 via-white/5 to-transparent"
-          : "bg-white/10")
-      }
+    <motion.div
+      whileHover={{ y: -5 }}
+      className="group relative bg-tech-900 p-[1px] transition-all duration-500"
     >
-      <div className={innerClasses}>
-        {/* Subtle decorative background element */}
-        <div className="absolute -right-4 -top-4 w-24 h-24 bg-brand-gold/5 rounded-full blur-2xl group-hover:bg-brand-gold/10 transition-colors" />
-
-        <div>
-          <div className="flex items-start justify-between gap-3 relative z-10">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] mb-2 text-gray-500 font-bold">
-                {program.label}
+      {/* Background Glow Effect - Cyber Cyan for High Stakes */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      
+      <div className="relative flex h-full flex-col justify-between bg-brand-obsidian p-8 lg:p-10 border border-tech-800 group-hover:border-tech-700 transition-colors">
+        
+        {/* Top Section: Identification */}
+        <div className="relative z-10">
+          <header className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="font-mono-data text-[9px] text-tech-600">
+                {program.label || "Institutional_Line"}
               </p>
-              <h3 className="text-xl font-light text-white tracking-tight">
+              <h3 className="text-3xl font-bold uppercase tracking-tighter text-white leading-[1.1]">
                 {program.name}
               </h3>
             </div>
-            <span className="text-[10px] uppercase tracking-widest rounded-full px-3 py-1 border border-white/10 bg-black/40 text-gray-400 font-medium">
-              MIN: ${program.min.toLocaleString()}
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <div className="glow-cyan h-2 w-2 rounded-full bg-signal-cyan" />
+              <span className="font-mono-data text-[8px] text-tech-700">PRM-SYS-v4</span>
+            </div>
+          </header>
+
+          {/* Yield Data: The Core Metric */}
+          <div className="mt-12 space-y-1">
+            <p className="font-mono-data text-[9px] text-brand-gold">Target_Yield</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-6xl font-bold tracking-tighter text-white tabular-nums">
+                {program.headlineRate}
+              </span>
+            </div>
           </div>
 
-          <div className="mt-8 relative z-10">
-            <p className="text-4xl font-light tracking-tighter text-white">
-              {program.headlineRate}
-            </p>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-brand-gold mt-1 font-bold">
-              Target Yield
-            </p>
+          {/* Institutional Specs Table */}
+          <div className="mt-12 space-y-4">
+            {[
+              { label: "Min_Allocation", value: `$${program.min.toLocaleString()}` },
+              { label: "Lock_Term", value: program.lock },
+              { label: "Finality", value: "Settled_Principal" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between border-b border-tech-900 pb-2">
+                <span className="font-mono-data text-[8px] text-tech-700">{item.label}</span>
+                <span className="font-mono-data text-[9px] text-white tabular-nums">{item.value}</span>
+              </div>
+            ))}
           </div>
-
-          <ul className="mt-8 text-xs text-gray-400 space-y-3 font-light relative z-10">
-            <li className="flex items-center gap-3">
-              <span className="h-1 w-1 rounded-full bg-brand-gold" />
-              Allocation: ${program.min.toLocaleString()}+
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="h-1 w-1 rounded-full bg-brand-gold" />
-              Maturity: {program.lock}
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="h-1 w-1 rounded-full bg-brand-gold" />
-              Settlement: Principal + Staked Yield
-            </li>
-          </ul>
         </div>
 
-        <button
-          onClick={() => onStakeClick(program)}
-          className={
-            "mt-10 w-full text-[11px] uppercase tracking-[0.2em] font-bold rounded-full py-4 transition-all relative z-10 " +
-            (isDecade
-              ? "bg-white text-black hover:bg-gray-200"
-              : "bg-brand-gold text-black hover:bg-brand-gold-muted")
-          }
-        >
-          {isDecade ? "Request Decade Allocation" : "Execute Stake"}
-        </button>
+        {/* Action: The Execution Trigger */}
+        <div className="mt-12">
+          <button
+            onClick={() => onStakeClick(program)}
+            className={`group/btn relative flex w-full items-center justify-center overflow-hidden py-5 transition-all active:scale-[0.98] ${
+              isDecade 
+                ? "bg-white text-black hover:bg-signal-cyan" 
+                : "border border-tech-700 bg-transparent text-white hover:bg-white hover:text-black"
+            }`}
+          >
+            {/* Hover Glint Effect */}
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover/btn:animate-[loading-scan_1.5s_infinite]" />
+            
+            <span className="font-mono-data relative z-10 text-[10px] font-bold">
+              {isDecade ? "Request_Decade_Entry" : "Execute_Stake_Sequence"}
+            </span>
+          </button>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

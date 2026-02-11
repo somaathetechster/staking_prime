@@ -1,16 +1,24 @@
-// We replace the local import with the shared package style
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "@primestakecorp/ui/styles.css";
 
-export const metadata = {
-  title: "Primestakecorp — Private Yield Desk",
-  description: "Institutional-grade staking platform demo for investors.",
-};
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space",
+  weight: ["300", "400", "700"],
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["300", "400", "600"],
+});
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      {/* We add 'antialiased' to match modern high-end fintech aesthetics */}
-      <body className="antialiased">{children}</body>
+    <html lang="en" className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
+      <body className="antialiased font-sans bg-[#020202] text-white selection:bg-brand-gold">
+        {children}
+      </body>
     </html>
   );
 }
