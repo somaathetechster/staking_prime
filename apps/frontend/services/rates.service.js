@@ -1,8 +1,8 @@
-// apps/api/services/rates.service.js
+// apps/frontend/services/rates.service.js
 
 import axios from 'axios';
 import NodeCache from 'node-cache'; // Install: npm install node-cache
-import { db } from '../lib/db';
+import { db } from "@primestakecorp/db";
 
 // CONFIGURATION
 const RATE_CACHE = new NodeCache({ stdTTL: 60 }); // Cache rates for 60 seconds

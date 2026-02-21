@@ -1,6 +1,6 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
-import { db } from '../lib/db';
+import { db } from "@primestakecorp/db";
 
 // CONFIGURATION
 const RATE_CACHE = new NodeCache({ stdTTL: 60 }); 
