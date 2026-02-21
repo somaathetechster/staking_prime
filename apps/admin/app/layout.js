@@ -1,3 +1,5 @@
+// apps/admin/app/layout.js
+
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { Sidebar } from "@primestakecorp/ui";
