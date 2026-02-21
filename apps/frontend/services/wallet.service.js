@@ -1,5 +1,7 @@
+// apps/frontend/services/wallet.service.js
+
 import axios from 'axios';
-import { db } from '../lib/db'; // Access to local DB for cross-checks
+import { db } from '@primestakecorp/db';
 
 // INSTITUTIONAL CONFIGURATION
 const TATUM_API_KEY = process.env.TATUM_API_KEY;

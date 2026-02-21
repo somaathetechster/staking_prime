@@ -1,4 +1,4 @@
-// apps/api/services/email.service.js
+// apps/frontend/services/email.service.js
 import { Resend } from 'resend';
 
 // Get this from https://resend.com/api-keys
@@ -7,7 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export const sendOTP = async (email, otp) => {
   try {
     const data = await resend.emails.send({
-      from: 'Security <onboarding@primestakecorp.com>', // Use 'onboarding@resend.dev' for testing if you don't have a domain yet
+      from: process.env.EMAIL_FROM || 'Primestake Security <onboarding@primestakecorp.com>',
       to: [email],
       subject: `[SECURE_LOGIN] Verification Code: ${otp}`,
       html: `

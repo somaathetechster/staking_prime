@@ -1,22 +1,19 @@
-// apps/frontend/middleware.js
-
 import { NextResponse } from 'next/server';
 
 /**
  * INSTITUTIONAL GATEWAY MIDDLEWARE
- * Scope: Protects the core terminal from unauthorized entry.
+ * Scope: Protects the core terminal from unauthorized entry and enforces the vetting protocol.
  */
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - branding (public assets)
+     * Match all request paths EXCEPT:
+     * - api (API routes, let the Route Handlers manage their own security)
+     * - _next/static & _next/image (Next.js internals)
+     * - favicon.ico (Browser icon)
+     * - marketing (Public assets/pages if you have them)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|pending|auth|marketing).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|marketing).*)',
   ],
 };
 
@@ -24,35 +21,49 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // 1. EXTRACT CREDENTIALS
-  // In your Prisma/NextAuth setup, this comes from the encrypted JWT
-  const sessionToken = request.cookies.get('next-auth.session-token') || request.cookies.get('__Secure-next-auth.session-token');
+  const sessionToken = request.cookies.get('next-auth.session-token')?.value || request.cookies.get('__Secure-next-auth.session-token')?.value;
   const userStatus = request.cookies.get('user_status')?.value?.toUpperCase() || 'NULL';
 
-  // 2. UNAUTHENTICATED REDIRECT
-  // If no session exists, force back to the Auth Gateway
-  if (!sessionToken && pathname !== '/') {
-    return NextResponse.redirect(new URL('/auth', request.url));
+  const isAuthPage = pathname.startsWith('/auth');
+  const isHomePage = pathname === '/';
+
+  // 2. UNAUTHENTICATED ROUTING
+  if (!sessionToken) {
+    // If they are not logged in, and trying to access a protected route (not Home or Auth) -> Redirect to Auth
+    if (!isHomePage && !isAuthPage) {
+      return NextResponse.redirect(new URL('/auth', request.url));
+    }
+    // Otherwise, let them view the Home or Auth page
+    return NextResponse.next();
   }
 
-  // 3. THE "VETTING" HARD-STOP
-  // If authenticated but not APPROVED, redirect to /pending
-  // Avoid redirect loop if already on /pending
-  if (sessionToken && userStatus !== 'APPROVED' && pathname !== '/pending') {
+  // 3. AUTHENTICATED ROUTING (The user has a token)
+
+  // Prevent logged-in users from seeing the Auth screen
+  if (isAuthPage) {
+    if (userStatus === 'APPROVED') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    } else {
+      return NextResponse.redirect(new URL('/pending', request.url));
+    }
+  }
+
+  // THE "VETTING" HARD-STOP
+  // If authenticated but not APPROVED, force to /pending
+  if (userStatus !== 'APPROVED' && pathname !== '/pending') {
     const url = request.nextUrl.clone();
     url.pathname = '/pending';
-    
-    // Superior Standard: Add a diagnostic reason to the URL for the UI to read
     url.searchParams.set('reason', 'VETTING_REQUIRED');
     return NextResponse.redirect(url);
   }
 
-  // 4. THE "ALREADY APPROVED" SHORT-CIRCUIT
+  // THE "ALREADY APPROVED" SHORT-CIRCUIT
   // If approved and trying to access /pending, skip to dashboard
   if (userStatus === 'APPROVED' && pathname === '/pending') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // 5. AUTHORIZED HANDSHAKE
+  // 4. AUTHORIZED HANDSHAKE
   const response = NextResponse.next();
   
   // Superior Standard: Inject Security Headers for Institutional Compliance

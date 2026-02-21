@@ -20,7 +20,6 @@ export async function POST(request) {
     });
 
     // 2. CRYPTOGRAPHIC VALIDATION
-    // Check: Does user exist? Does OTP match? Is it still within 10-min window?
     if (!user || user.otp !== otp || new Date() > user.otpExpires) {
       console.warn(`[AUTH_DENIED] Failed handshake for: ${cleanEmail}`);
       return NextResponse.json(
@@ -30,7 +29,7 @@ export async function POST(request) {
     }
 
     // 3. ATOMIC CLEANUP
-    // Neutralize the OTP immediately after successful use (Single-use security)
+    // Neutralize the OTP immediately after successful use
     await db.user.update({
       where: { id: user.id },
       data: { otp: null, otpExpires: null }
@@ -47,12 +46,23 @@ export async function POST(request) {
       .setExpirationTime("24h") 
       .sign(JWT_SECRET);
 
-    // 5. DEPLOY SECURE COOKIE
+    // 5. DEPLOY SECURE COOKIES (Fixed for Middleware Compatibility)
     const cookieStore = await cookies();
-    cookieStore.set("session_token", token, {
+    
+    // A. The Auth Token (Spoofing the NextAuth name so your middleware works seamlessly)
+    cookieStore.set("next-auth.session-token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax", // Changed to lax to prevent issues with redirects
+      path: "/",
+      maxAge: 60 * 60 * 24, 
+    });
+
+    // B. The Status Token (Crucial for the /pending vetting logic)
+    cookieStore.set("user_status", user.status, {
+      httpOnly: false, // False so the frontend UI can read it if needed
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24, 
     });
@@ -62,7 +72,7 @@ export async function POST(request) {
     // 6. FINAL HANDSHAKE
     return NextResponse.json({ 
       success: true, 
-      status: user.status // PENDING_REVIEW or APPROVED
+      status: user.status 
     });
 
   } catch (error) {
