@@ -1,3 +1,6 @@
+// apps/admin/app/page.js
+// This is the main dashboard page for the Admin interface. It provides an overview of pending user vetting and global rate monitoring.
+
 "use client";
 
 import { useState } from 'react';
