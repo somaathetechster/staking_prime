@@ -4,7 +4,16 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"]
+      "outputs": [".next/**", "dist/**"],
+      "env": [
+        "JWT_SECRET",
+        "NEXTAUTH_URL",
+        "RESEND_API_KEY",
+        "EMAIL_FROM",
+        "TATUM_API_KEY",
+        "TATUM_HMAC_SECRET",
+        "NEXT_PUBLIC_APP_URL"
+      ]
     },
     "dev": {
       "cache": false,

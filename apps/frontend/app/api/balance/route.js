@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../lib/db';
-import { auditWalletBalance } from '../../services/wallet.service';
+import { db } from "@primestakecorp/db";
+import { auditWalletBalance } from '../../../services/wallet.service';
 import { getServerSession } from "next-auth"; // Or your custom session logic
 
 export async function GET() {

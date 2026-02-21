@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { Layout } from "@primestakecorp/ui"; 
-import VaultManagerModal from "../components/VaultManagerModal";
+import VaultManagerModal from "../../components/VaultManagerModal";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 

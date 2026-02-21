@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminRateData } from "../../../services/rates.service";
+import { getAdminRateData } from "../../services/rates.service";
 
 export async function GET() {
   try {

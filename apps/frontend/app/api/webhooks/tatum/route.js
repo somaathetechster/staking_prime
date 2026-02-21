@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@primestakecorp/db";
-import { getEffectiveRate } from "../../../services/rates.service";
+import { getEffectiveRate } from "../../../../services/rates.service";
 import crypto from 'crypto';
 import { z } from 'zod';
 
