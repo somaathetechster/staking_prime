@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { getAdminRateData } from "../../../services/rates.service";
 
 export async function GET() {
-  return NextResponse.json({
-    BTC: { rate: 98420.00, change: 2.4 },
-    ETH: { rate: 2840.00, change: -1.2 },
-    USDT: { rate: 1.00, change: 0.0 }
-  });
+  try {
+    // This returns the object with adminRate, marketRate, and useManual for each symbol
+    const data = await getAdminRateData(['BTC', 'ETH', 'USDT']);
+    
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json({ error: "FAILED_TO_FETCH_RATES" }, { status: 500 });
+  }
 }
